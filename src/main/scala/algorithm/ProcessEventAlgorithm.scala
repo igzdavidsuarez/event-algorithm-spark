@@ -17,11 +17,11 @@ object ProcessEventAlgorithm {
 
     // TODO Load society to Test
     val society = loadSociety()
-    society.actors.foreach(println)
-    society.conditions.foreach(println)
-    society.consecuences.foreach(println)
-    society.properties.foreach(println)
-    society.events.foreach(println)
+//    society.actors.foreach(println)
+//    society.conditions.foreach(println)
+//    society.consecuences.foreach(println)
+//    society.properties.foreach(println)
+//    society.events.foreach(println)
 
     //TODO Process Events following the previous example
 
@@ -51,7 +51,7 @@ object ProcessEventAlgorithm {
 
   def processEvent(acc: (Society, List[Event]), eventValue: Event): (Society, List[Event]) = {
     var society = acc._1
-    val eventList = acc._2
+    var eventList = acc._2
 
     var conditions = society.conditions
     var consecuences = society.consecuences
@@ -63,8 +63,8 @@ object ProcessEventAlgorithm {
       // Check Consecuences
       society = checkConsecuences(society)
 
-      // TODO add to the event list the event processed
-      //eventList :: eventValue
+      // TODO add to the event list the event processed instead of concatenate lists.
+      eventList = eventList ::: List(eventValue)
     }
 
     (society, eventList)
