@@ -82,7 +82,7 @@ object ProcessEventAlgorithm {
       val societyAndEventList = checkConsecuences(society, eventValue)
 
       // TODO add to the event list the event processed instead of concatenate lists.
-      eventList = eventList ::: List(societyAndEventList._2)
+      eventList = eventList ::: societyAndEventList._2
       (societyAndEventList._1, eventList)
     } else {
       (society, eventList)
@@ -110,12 +110,12 @@ object ProcessEventAlgorithm {
    * @param event
    * @return Society
    */
-  def checkConsecuences(society: Society, event: Event): Society = {
+  def checkConsecuences(society: Society, event: Event): (Society, List[Event]) = {
 
     val consecuenceIds = event.aFkIdConsecuences
 
     // Iterate to run consecuence one by one
-    val newSociety = consecuenceIds.foldLeft(society)((a, b) => (executeConsecuence(a, b)))
+    val newSociety = consecuenceIds.foldLeft((society, List(event)))((a, b) => (executeConsecuence(a, b)))
 
     // Return new Society
     newSociety
@@ -125,11 +125,13 @@ object ProcessEventAlgorithm {
   /**
    * Execute consecuence and return the new society state
    *
-   * @param society
+   * @param acc
    * @param consecuenceId
    * @return Society
    */
-  def executeConsecuence(society: Society, consecuenceId: Int): Society = {
+  def executeConsecuence(acc: (Society, List[Event]), consecuenceId: Int): (Society, List[Event]) = {
+
+    val society = acc._1
 
     // Find consecuence in society
     val consecuence = society.consecuences.find(_.id == consecuenceId).get
@@ -138,19 +140,24 @@ object ProcessEventAlgorithm {
     val propertyAlteredId = consecuence.fkIdPropertyAltered
 
     if (eventTriggeredId != 0) {
+     //TODO CALL TO THE RECURSIVE ALGORITHM AND RETURN THE NEW SOCIETY AND THE LIST PROCESSED
 
       // Run the event triggered calling to the algorithm recursively and add the result to the return list
       val eventTriggered = society.events.find(_.id == eventTriggeredId).get
 
+      //TODO CALL THE PROCESS EVENT ALGORITHM AND CONCAT THE RESULT TO THE LIST
 
+      //TODO CREATE THE NEW SOCIETY RETURNED FROM THE PROCESS EVENT ALGORITHM AND RETURN THE NEW ONE
+
+      //Return the new (Society, List of events)
+      (society, List(Event(22, "Des", 0, "value", List(0),List(0))))
     } else {
 
-      // Change the actor property value in the society
+    // TODO CHANGE THE SOCIETY PROPERTY, CREATE A NEW ONE AND RETURN THE SOCIETY AND SAME THE LIST
 
+      //Return the new (Society, List of events)
+    (society, List(Event(22, "Des", 0, "value", List(0),List(0))))
     }
-
-    //Return the new (Society, List of events)
-
   }
 }
 
