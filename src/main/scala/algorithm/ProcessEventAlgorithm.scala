@@ -15,11 +15,13 @@ object ProcessEventAlgorithm {
     val sc = new SparkContext(conf)
 
 
+    // Simulated event list to process
+    val eventListToProcess = List(ActorEvent("id1", 0, 10))
     // TODO Load society from DB instead of Hardcode
     val society = loadSociety()
 
     // Process event list from the initial society state.
-    processEvents(society.events, society).foreach(println)
+    processEvents(eventListToProcess, society).foreach(println)
 
     // Stop Spark Context
     sc.stop()
@@ -51,9 +53,9 @@ object ProcessEventAlgorithm {
    * @param society
    * @return
    */
-  def processEvents(eventList: List[Event], society: Society): List[Event] = {
+  def processEvents(eventList: List[ActorEvent], society: Society): List[ActorEvent] = {
 
-    val accum = (society, List(Event(0, "Start", 0, "Start", List(0), List(0))))
+    val accum = (society, List(ActorEvent("id1", 0, 10)))
 
     val outputEventList = eventList.foldLeft(accum)((a, b) => (processEvent(a, b)))
 
@@ -67,7 +69,7 @@ object ProcessEventAlgorithm {
    * @param eventValue
    * @return
    */
-  def processEvent(acc: (Society, List[Event]), eventValue: Event): (Society, List[Event]) = {
+  def processEvent(acc: (Society, List[ActorEvent]), eventValue: ActorEvent): (Society, List[ActorEvent]) = {
     var society = acc._1
     var eventList = acc._2
 
@@ -107,15 +109,16 @@ object ProcessEventAlgorithm {
    * Check all consecuences to change the society state and run all the events triggered
    *
    * @param society
-   * @param event
-   * @return Society
+   * @param actorEvent
+   * @return (Society, List[ActorEvent])
    */
-  def checkConsecuences(society: Society, event: Event): (Society, List[Event]) = {
+  def checkConsecuences(society: Society, actorEvent: ActorEvent): (Society, List[ActorEvent]) = {
 
+    val event = society.events.find(_.id == actorEvent.fkIdEvent).get
     val consecuenceIds = event.aFkIdConsecuences
 
     // Iterate to run consecuence one by one
-    val newSociety = consecuenceIds.foldLeft((society, List(event)))((a, b) => (executeConsecuence(a, b)))
+    val newSociety = consecuenceIds.foldLeft((society, List(actorEvent)))((a, b) => (executeConsecuence(a, b)))
 
     // Return new Society
     newSociety
@@ -129,9 +132,12 @@ object ProcessEventAlgorithm {
    * @param consecuenceId
    * @return Society
    */
-  def executeConsecuence(acc: (Society, List[Event]), consecuenceId: Int): (Society, List[Event]) = {
+  def executeConsecuence(acc: (Society, List[ActorEvent]), consecuenceId: Int): (Society, List[ActorEvent]) = {
 
     val society = acc._1
+    val listEvent = acc._2
+    val actorEvent =  listEvent.last // You have to take the last one
+    val event = society.events.find(_.id == actorEvent.fkIdEvent).get
 
     // Find consecuence in society
     val consecuence = society.consecuences.find(_.id == consecuenceId).get
@@ -150,13 +156,20 @@ object ProcessEventAlgorithm {
       //TODO CREATE THE NEW SOCIETY RETURNED FROM THE PROCESS EVENT ALGORITHM AND RETURN THE NEW ONE
 
       //Return the new (Society, List of events)
-      (society, List(Event(22, "Des", 0, "value", List(0),List(0))))
+      (society, List(ActorEvent("id1", 0, 1)))
     } else {
 
-    // TODO CHANGE THE SOCIETY PROPERTY, CREATE A NEW ONE AND RETURN THE SOCIETY AND SAME THE LIST
+      val actorProperty = society.actorsProperties.find(_.id == actorEvent.id).get
+      val operator = consecuence.operator
+      var newPropertyValue = actorProperty.value
+      operator match {
+        case "+" => actorProperty.value = actorProperty.value + actorEvent.value
+        case "-" => actorProperty.value = actorProperty.value - actorEvent.value
+        case "*" => actorProperty.value = actorProperty.value * actorEvent.value
+        case "/" => actorProperty.value = actorProperty.value / actorEvent.value
+      }
 
-      //Return the new (Society, List of events)
-    (society, List(Event(22, "Des", 0, "value", List(0),List(0))))
+      (society, listEvent)
     }
   }
 }
