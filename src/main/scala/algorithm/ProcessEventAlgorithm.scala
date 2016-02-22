@@ -14,10 +14,9 @@ object ProcessEventAlgorithm {
     val conf = new SparkConf().setMaster("local[2]").setAppName("ProcessAlgorithm")
     val sc = new SparkContext(conf)
 
-
-    // Simulated event list to process
-    val eventListToProcess = List(ActorEvent("id1", 0, 10))
     // TODO Load society from DB instead of Hardcode
+    // Simulated event list to process and Society status
+    val eventListToProcess = List(ActorEvent("id1", 0, 10))
     val society = loadSociety()
 
     // Process event list from the initial society state.
@@ -36,11 +35,11 @@ object ProcessEventAlgorithm {
   def loadSociety(): Society = {
 
     // TODO Load form DB instead of Hardcode
-    val actorsProperties = List(ActorProperty("id1", 0, 2))
-    val conditions = List(Condition(0, "Tener saldo",/*This value should be null*/ 0, 0, ">"))
-    val consecuences = List(Consecuence(0, "Restar Saldo",/*This value should be null*/ 0, 0, "-"))
-    val events = List(Event(0, "Pago", 0, "IDK", List(0), List(0)))
-    val properties = List(Property(0, "Saldo", "Double", 0, 100))
+    val actorsProperties = List(ActorProperty("id1", 0, 10))
+    val conditions = List(Condition(0, "Enough balance",/*This value should be null*/ 0, 0, ">"))
+    val consecuences = List(Consecuence(0, "Restar Saldo",/*This value should be null*/ 0, 0, "-"), Consecuence(1, "Raise Payment",/*This value should be null*/ 1, 0, "-"), Consecuence(1, "Raise Extra Payment",/*This value should be null*/ 0, 0, "-"))
+    val events = List(Event(0, "Payment", 0, "IDK", List(0), List(0, 1)), Event(1, "Get salary", 0, "IDK", List(0), List(0)))
+    val properties = List(Property(0, "Balance", "Double", 0, 100))
 
     Society(actorsProperties, conditions, consecuences, events, properties)
   }
@@ -55,10 +54,12 @@ object ProcessEventAlgorithm {
    */
   def processEvents(eventList: List[ActorEvent], society: Society): List[ActorEvent] = {
 
-    val accum = (society, List(ActorEvent("id1", 0, 10)))
+    val accum = (society, List(ActorEvent("start", 0, 0)))
 
     val outputEventList = eventList.foldLeft(accum)((a, b) => (processEvent(a, b)))
 
+
+    println(outputEventList._1.actorsProperties)
     outputEventList._2
   }
 
@@ -70,6 +71,7 @@ object ProcessEventAlgorithm {
    * @return
    */
   def processEvent(acc: (Society, List[ActorEvent]), eventValue: ActorEvent): (Society, List[ActorEvent]) = {
+
     var society = acc._1
     var eventList = acc._2
 
@@ -83,7 +85,6 @@ object ProcessEventAlgorithm {
       // Check Consecuences return a tuple with the new society and all the events triggered
       val societyAndEventList = checkConsecuences(society, eventValue)
 
-      // TODO add to the event list the event processed instead of concatenate lists.
       eventList = eventList ::: societyAndEventList._2
       (societyAndEventList._1, eventList)
     } else {
@@ -114,11 +115,12 @@ object ProcessEventAlgorithm {
    */
   def checkConsecuences(society: Society, actorEvent: ActorEvent): (Society, List[ActorEvent]) = {
 
+    // Get Consecuences Ids
     val event = society.events.find(_.id == actorEvent.fkIdEvent).get
     val consecuenceIds = event.aFkIdConsecuences
 
-    // Iterate to run consecuence one by one
-    val newSociety = consecuenceIds.foldLeft((society, List(actorEvent)))((a, b) => (executeConsecuence(a, b)))
+    // Iterate to run consecuences and changing society status one by one
+    val newSociety = consecuenceIds.foldLeft((society, List(actorEvent)))((a, b) => executeConsecuence(a, b))
 
     // Return new Society
     newSociety
@@ -137,31 +139,31 @@ object ProcessEventAlgorithm {
     val society = acc._1
     val listEvent = acc._2
     val actorEvent =  listEvent.last // You have to take the last one
-    val event = society.events.find(_.id == actorEvent.fkIdEvent).get
 
     // Find consecuence in society
     val consecuence = society.consecuences.find(_.id == consecuenceId).get
 
+    // Check if the consecuence raise another event
     val eventTriggeredId = consecuence.fkIdEventTriggered
-    val propertyAlteredId = consecuence.fkIdPropertyAltered
 
     if (eventTriggeredId != 0) {
-     //TODO CALL TO THE RECURSIVE ALGORITHM AND RETURN THE NEW SOCIETY AND THE LIST PROCESSED
 
       // Run the event triggered calling to the algorithm recursively and add the result to the return list
       val eventTriggered = society.events.find(_.id == eventTriggeredId).get
 
-      //TODO CALL THE PROCESS EVENT ALGORITHM AND CONCAT THE RESULT TO THE LIST
-
-      //TODO CREATE THE NEW SOCIETY RETURNED FROM THE PROCESS EVENT ALGORITHM AND RETURN THE NEW ONE
+      // TODO Change '10' to value taken from DB
+      // TODO run event to another actor.
+      val eventsTriggered = processEvent((society, List()), ActorEvent(actorEvent.id, eventTriggeredId, 10))
 
       //Return the new (Society, List of events)
-      (society, List(ActorEvent("id1", 0, 1)))
+      (eventsTriggered._1, listEvent ::: eventsTriggered._2)
+
     } else {
 
+      // The consecuence just change an actor property
       val actorProperty = society.actorsProperties.find(_.id == actorEvent.id).get
       val operator = consecuence.operator
-      var newPropertyValue = actorProperty.value
+
       operator match {
         case "+" => actorProperty.value = actorProperty.value + actorEvent.value
         case "-" => actorProperty.value = actorProperty.value - actorEvent.value
