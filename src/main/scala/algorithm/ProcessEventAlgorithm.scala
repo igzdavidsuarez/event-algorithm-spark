@@ -72,15 +72,11 @@ object ProcessEventAlgorithm {
    */
   def processEvent(acc: (Society, List[ActorEvent]), eventValue: ActorEvent): (Society, List[ActorEvent]) = {
 
-    var society = acc._1
+    val society = acc._1
     var eventList = acc._2
 
-    var conditions = society.conditions
-    var consecuences = society.consecuences
-    var properties = society.properties
-
     // Check Conditions
-    if (checkConditions(conditions, properties)) {
+    if (checkConditions(society, eventList, eventValue)) {
 
       // Check Consecuences return a tuple with the new society and all the events triggered
       val societyAndEventList = checkConsecuences(society, eventValue)
@@ -96,13 +92,60 @@ object ProcessEventAlgorithm {
   /**
    * Check all conditions
    *
-   * @param conditions
-   * @param properties
+   * @param society
+   * @param actorEvent
    * @return Boolean
    */
-  def checkConditions(conditions: List[Condition], properties: List[Property]): Boolean = {
-    // TODO
-    true
+  def checkConditions(society: Society, eventList:  List[ActorEvent], actorEvent: ActorEvent): Boolean = {
+
+    var conditions = society.conditions
+    var properties = society.properties
+
+    // Get Consecuences Ids
+    val event = society.events.find(_.id == actorEvent.fkIdEvent).get
+    val conditionIds = event.aFkIdConditions
+
+    val conditionValidation = conditionIds.foldLeft(true)((a, b) => a && checkCondition(society, eventList, actorEvent, b))
+
+    conditionValidation
+  }
+
+  /**
+   *  Check a single condition
+   *
+   * @param society
+   * @param actorEvent
+   * @param conditionId
+   * @return
+   */
+  def checkCondition(society: Society, eventList:  List[ActorEvent], actorEvent: ActorEvent, conditionId: Int): Boolean = {
+
+    // Find condition in society
+    val condition = society.conditions.find(_.id == conditionId).get
+    var validation = false
+
+    // TODO change 0 to null
+    if(condition.fkIdPreviousEvent != 0) {
+
+      // TODO CHECK IF EVENTlIST CONTAINS THIS ID
+      validation = eventList.exists(_.id == condition.fkIdPreviousEvent)
+
+    } else {
+
+      // The condition just change an actor property
+      val actorProperty = society.actorsProperties.find(_.id == actorEvent.id).get
+      val operator = condition.operator
+
+      operator match {
+        case "=" => validation = actorProperty.value == actorEvent.value
+        case ">" => validation = actorProperty.value > actorEvent.value
+        case "<" => validation = actorProperty.value < actorEvent.value
+        case ">=" => validation = actorProperty.value >= actorEvent.value
+        case "<=" => validation = actorProperty.value <= actorEvent.value
+      }
+    }
+
+    validation
   }
 
 
@@ -146,6 +189,7 @@ object ProcessEventAlgorithm {
     // Check if the consecuence raise another event
     val eventTriggeredId = consecuence.fkIdEventTriggered
 
+    // TODO change 0 to null
     if (eventTriggeredId != 0) {
 
       // Run the event triggered calling to the algorithm recursively and add the result to the return list
